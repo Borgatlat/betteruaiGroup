@@ -1,0 +1,61 @@
+{
+  "cli": {
+    "version": ">= 5.9.1",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium",
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "resourceClass": "m-medium",
+        "image": "macos-sequoia-15.3-xcode-16.2",
+        "buildConfiguration": "Release",
+        "cache": {
+          "key": "clear-cpp-issue-v8"
+        },
+        "cocoapods": "1.15.2",
+        "env": {
+          "OTHER_CPLUSPLUSFLAGS": "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -DFOLLY_HAVE_CLOCK_GETTIME=1",
+          "EXPO_NO_SOURCEMAP": "1",
+          "RUBY_VERSION": "3.2.2",
+          "FASTLANE_VERSION": "2.217.0",
+          "FASTLANE_SKIP_UPDATE_CHECK": "true",
+          "FASTLANE_HIDE_TIMESTAMP": "true",
+          "FASTLANE_SKIP_ACTION_SUMMARY": "true",
+          "COCOAPODS_DISABLE_STATS": "true",
+          "POD_INSTALL_USE_FRAMEWORKS": "static",
+          "USE_FRAMEWORKS": "static",
+                    "NODE_OPTIONS": "--max-old-space-size=4096",
+          "FOLLY_VERSION": "2024.01.22.00"
+        },
+        "credentialsSource": "remote"
+      },
+      "prebuildCommand": "npx expo prebuild -p ios --clean"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "andyjulijohn@yahoo.com",
+        "ascAppId": "6688642020",
+        "appleTeamId": "3DT3JG9S95",
+        "sku": "betterU_TestFlight_v7"
+      }
+    }
+  }
+} 

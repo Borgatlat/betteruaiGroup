@@ -1,0 +1,83 @@
+{
+  "expo": {
+    "name": "betterU",
+    "slug": "betterU_TestFlight_v7",
+    "version": "1.0.5",
+    "orientation": "portrait",
+    "icon": "./assets/images/betterumobile.png",
+    "scheme": "betteru",
+    "userInterfaceStyle": "automatic",
+    "jsEngine": "jsc",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.enriqueortiz.betteru",
+      "buildNumber": "38",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to let you take profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app uses the photo library to let you select profile pictures.",
+        "NSPhotoLibraryAddUsageDescription": "This app uses the photo library to save workout progress images.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to show maps.",
+        "UIBackgroundModes": ["remote-notification", "location", "audio"]
+      },
+      "usesAppleSignIn": true,
+      "config": {
+        "usesNonExemptEncryption": false,
+        "googleMapsApiKey": "AIzaSyCqGOh4wjmj3CHim04fZbxAqM_Przqy024"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/betterUmobile.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.enriqueortiz.betteru",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/betterUmobile.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image-picker",
+      "expo-av",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/betterUmobile.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-web-browser",
+      [
+        "react-native-purchases",
+        {
+          "ios": {
+            "automaticAppleSearchAdsAttributionCollection": true
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+                "projectId": "57d27416-420d-4d92-8d6d-d1365c22f311"
+      }
+    },
+
+    "owner": "easbetteru"
+  }
+}
