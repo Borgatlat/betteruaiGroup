@@ -10,6 +10,7 @@ import { useUser } from '../../context/UserContext';
 import { AppState } from 'react-native';
 import { useSettings } from '../../context/SettingsContext';
 import { FloatingAITrainer } from '../../components/FloatingAITrainer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const workoutData = {
   'Full Body Workout': {
@@ -1878,6 +1879,7 @@ const ActiveWorkoutScreen = () => {
   const [showHowToModal, setShowHowToModal] = useState(false);
   const [currentExercise, setCurrentExercise] = useState(null);
   const { userProfile } = useUser();
+  const insets = useSafeAreaInsets();
 
   // Initialize workout state based on params
   useEffect(() => {
@@ -2278,8 +2280,8 @@ const ActiveWorkoutScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: Math.max(20, insets.bottom + 20) }}>
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <TouchableOpacity 
             style={styles.closeButton}
             onPress={handleExit}
@@ -2535,7 +2537,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
     backgroundColor: '#000000',
     zIndex: 1,
   },

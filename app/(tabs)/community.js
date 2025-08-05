@@ -11,8 +11,11 @@ import { GroupAvatar } from '../components/GroupAvatar';
 import StoryFeed from '../components/StoryFeed';
 import ChallengeSection from '../../components/ChallengeSection';
 import { Video } from 'expo-av';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 const CommunityScreen = () => {
   const { userProfile, isPremium } = useUser();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const [activeTab, setActiveTab] = useState('friends'); // 'friends' or 'feed' or 'groups' or 'challenges'
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -1454,7 +1457,7 @@ const handleCreateGroup = async () => {
 
     return (
     <View style={styles.container}>
-      <View style={styles.headerContainer}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.header}>Community</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
@@ -2106,7 +2109,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#111',
-    paddingTop: 72,
     paddingHorizontal: 0, // Remove horizontal padding for full width
     paddingBottom: 24,
   },

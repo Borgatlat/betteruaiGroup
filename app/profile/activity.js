@@ -6,6 +6,7 @@ import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import FeedCard from '../components/FeedCard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ActivityScreen = () => {
   const [activities, setActivities] = useState([]);
@@ -13,6 +14,7 @@ const ActivityScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const { user: currentUser, profile: userProfile } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   // Get userId from either profile or currentUser
   const userId = userProfile?.id || currentUser?.id;
@@ -299,7 +301,7 @@ const ActivityScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)/profile')}>
         <Ionicons name="chevron-back" size={22} color="#00ffff" />
         <Text style={styles.backButtonText}>Back to Profile</Text>
@@ -323,7 +325,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
     paddingHorizontal: 0,
-    paddingTop: 32,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   feedWrapper: {
     paddingHorizontal: 12,

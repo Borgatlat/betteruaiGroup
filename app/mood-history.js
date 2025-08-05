@@ -1,11 +1,13 @@
 "use client";
 
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import MoodGraph from './components/MoodGraph';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const moodOptions = [
   { value: 'great', icon: 'sunny', color: '#FFD700' },
@@ -19,6 +21,7 @@ const MoodHistoryScreen = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [moodHistory, setMoodHistory] = useState([]);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     fetchMoodHistory();
@@ -56,15 +59,11 @@ const MoodHistoryScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons 
-          name="arrow-back" 
-          size={24} 
-          color="#fff" 
-          onPress={() => router.back()}
-          style={styles.backButton}
-        />
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#00ffff" />
+        </TouchableOpacity>
         <Text style={styles.title}>Mood History</Text>
       </View>
 
@@ -111,7 +110,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
     marginBottom: 20,
   },
   backButton: {

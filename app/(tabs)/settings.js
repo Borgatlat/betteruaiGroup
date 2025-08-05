@@ -13,6 +13,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { supabase } from '../../lib/supabase';
 import { useSettings } from '../../context/SettingsContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -44,6 +45,7 @@ const SettingsScreen = () => {
   const [password, setPassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [subscription, setSubscription] = useState(null);
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   console.warn('[SettingsScreen] isPremium:', isPremium);
 
@@ -266,8 +268,8 @@ const SettingsScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
-      <View style={styles.header}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(80, insets.bottom + 20) }}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={handleBackToProfile}
@@ -844,7 +846,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingTop: 60,
   },
   centered: {
     justifyContent: 'center',

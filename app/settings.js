@@ -1,17 +1,26 @@
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, TextInput, Modal, Linking, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUnits } from '../context/UnitsContext';
 import { useTracking } from '../context/TrackingContext';
+import { useUser } from '../context/UserContext';
 import PremiumFeature from './components/PremiumFeature';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
+import { supabase } from '../lib/supabase';
+import { useSettings } from '../context/SettingsContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SettingsScreen = () => {
   const router = useRouter();
   const { signOut, isPremium } = useAuth();
   const { useImperial, toggleUnits } = useUnits();
   const { calories, water, updateGoal } = useTracking();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
 
@@ -50,7 +59,7 @@ const SettingsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={handleBackToProfile}
@@ -253,7 +262,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingTop: 60,
   },
   header: {
     paddingHorizontal: 20,

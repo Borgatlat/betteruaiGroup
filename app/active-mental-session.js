@@ -1,6 +1,6 @@
 "use client";
 
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useRef } from 'react';
@@ -11,6 +11,7 @@ import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import PremiumFeature from './components/PremiumFeature';
 import { useUser } from '../context/UserContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ActiveMentalSession = () => {
   const router = useRouter();
@@ -28,6 +29,7 @@ const ActiveMentalSession = () => {
   const [isMuted, setIsMuted] = useState(false);
   const soundRef = useRef(null);
   const { isPremium } = useUser();
+  const insets = useSafeAreaInsets();
 
   const session = {
     id: params.id,
@@ -273,7 +275,7 @@ const ActiveMentalSession = () => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
           style={styles.closeButton}
           onPress={() => {
@@ -435,7 +437,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   closeButton: {
     padding: 10,

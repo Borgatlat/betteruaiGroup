@@ -9,6 +9,7 @@ import { useTracking } from '../../context/TrackingContext';
 import { supabase } from '../../lib/supabase';
 import MoodGraph from '../components/MoodGraph';
 import MentalSessionSummary from '../components/MentalSessionSummary';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const mentalSessions = {
   meditation: [
@@ -131,6 +132,7 @@ const MentalScreen = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
   const [remainingTime, setRemainingTime] = useState(0);
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   useEffect(() => {
     fetchMoodHistory();
@@ -434,7 +436,7 @@ const MentalScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: Math.max(20, insets.bottom + 20) }}>
       <Text style={styles.title}>Mental Wellness</Text>
       
       <TouchableOpacity

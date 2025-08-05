@@ -5,10 +5,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function EditRunScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams();
+  export default function EditRunScreen() {
+    const router = useRouter();
+    const { id } = useLocalSearchParams();
+    const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [run, setRun] = useState(null);
@@ -168,8 +170,8 @@ export default function EditRunScreen() {
     );
   }
 
-  return (
-    <ScrollView style={styles.container}>
+      return (
+      <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#111',
-    paddingTop: 50, // Add padding for status bar
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   loadingContainer: {
     flex: 1,
