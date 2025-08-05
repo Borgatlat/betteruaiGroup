@@ -1,9 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Image, 
+  Alert, 
+  Animated, 
+  Dimensions,
+  Share,
+  Vibration,
+  ActivityIndicator
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../context/UserContext';
 import { PremiumAvatar } from '../app/components/PremiumAvatar';
+
+const { width } = Dimensions.get('window');
 
 const ChallengeCard = ({ 
   challenge, 
@@ -18,6 +32,12 @@ const ChallengeCard = ({
   const { userProfile } = useUser();
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  
+  // Animation values
+  const scaleAnim = useState(new Animated.Value(1))[0];
+  const pulseAnim = useState(new Animated.Value(1))[0];
+  const slideAnim = useState(new Animated.Value(0))[0];
 
   // Calculate challenge progress
   const calculateProgress = () => {
@@ -60,33 +80,73 @@ const ChallengeCard = ({
     return colors[difficulty] || '#00ffff';
   };
 
-  // Get time remaining
+  // Get time remaining with urgency indicators
   const getTimeRemaining = () => {
     try {
       const now = new Date();
       const endDate = new Date(challenge.end_date);
       const diff = endDate - now;
       
-      if (diff <= 0) return 'Ended';
+      if (diff <= 0) return { text: 'Ended', urgent: false };
       
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       
-      if (days > 0) return `${days}d ${hours}h left`;
-      if (hours > 0) return `${hours}h left`;
-      return 'Ending soon';
+      if (days > 0) return { text: `${days}d ${hours}h left`, urgent: days <= 1 };
+      if (hours > 0) return { text: `${hours}h left`, urgent: hours <= 6 };
+      return { text: 'Ending soon', urgent: true };
     } catch (error) {
       console.error('Error calculating time remaining:', error);
-      return 'Unknown';
+      return { text: 'Unknown', urgent: false };
     }
   };
 
-  // Handle join/leave challenge
+  // Animate card on press
+  const animatePress = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  // Pulse animation for urgent challenges
+  useEffect(() => {
+    const timeRemaining = getTimeRemaining();
+    if (timeRemaining.urgent && isJoined) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [isJoined, challenge.end_date]);
+
+  // Handle join/leave challenge with haptic feedback
   const handleToggleParticipation = async () => {
     if (!userProfile?.id) {
       Alert.alert('Error', 'Please log in to join challenges');
       return;
     }
+
+    // Haptic feedback
+    Vibration.vibrate(50);
 
     if (isJoined) {
       setIsLeaving(true);
@@ -100,7 +160,7 @@ const ChallengeCard = ({
         if (error) throw error;
         
         onLeave?.(challenge.id);
-        // Don't show success alert for leaving, just do it silently
+        Alert.alert('Success', 'You left the challenge');
       } catch (error) {
         console.error('Error leaving challenge:', error);
         Alert.alert('Error', 'Failed to leave challenge. Please try again.');
@@ -122,7 +182,7 @@ const ChallengeCard = ({
         if (error) throw error;
         
         onJoin?.(challenge.id);
-        Alert.alert('Success', 'Joined challenge successfully!');
+        Alert.alert('Success', `You joined "${challenge.title}"!`);
       } catch (error) {
         console.error('Error joining challenge:', error);
         Alert.alert('Error', 'Failed to join challenge. Please try again.');
@@ -132,68 +192,89 @@ const ChallengeCard = ({
     }
   };
 
+  // Share challenge
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Join me in the "${challenge.title}" challenge on BetterU! ${challenge.description}`,
+        title: challenge.title,
+      });
+    } catch (error) {
+      console.error('Error sharing challenge:', error);
+    }
+  };
+
+  // View challenge details
+  const handleViewDetails = () => {
+    animatePress();
+    onViewDetails?.(challenge);
+  };
+
   const progress = calculateProgress();
   const timeRemaining = getTimeRemaining();
+  const difficultyColor = getDifficultyColor(challenge.difficulty);
 
   return (
-    <TouchableOpacity 
-      style={styles.container}
-      onPress={() => onViewDetails?.(challenge)}
-      activeOpacity={0.8}
+    <Animated.View 
+      style={[
+        styles.container,
+        { 
+          transform: [
+            { scale: scaleAnim },
+            { scale: pulseAnim }
+          ]
+        }
+      ]}
     >
-      {/* Challenge Header */}
-      <View style={styles.header}>
-        <View style={styles.typeContainer}>
-          <Ionicons 
-            name={getChallengeIcon(challenge.type)} 
-            size={20} 
-            color="#00ffff" 
-          />
-          <Text style={styles.typeText}>{challenge.type.toUpperCase()}</Text>
-        </View>
-        
-        <View style={styles.difficultyContainer}>
-          <View 
-            style={[
-              styles.difficultyBadge, 
-              { backgroundColor: getDifficultyColor(challenge.difficulty) }
-            ]}
-          >
+      <TouchableOpacity 
+        style={styles.cardContent}
+        onPress={handleViewDetails}
+        activeOpacity={0.9}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.typeContainer}>
+            <Ionicons 
+              name={getChallengeIcon(challenge.type)} 
+              size={16} 
+              color="#00ffff" 
+            />
+            <Text style={styles.typeText}>{challenge.type.toUpperCase()}</Text>
+          </View>
+          
+          <View style={styles.difficultyContainer}>
+            <View style={[styles.difficultyDot, { backgroundColor: difficultyColor }]} />
             <Text style={styles.difficultyText}>{challenge.difficulty}</Text>
           </View>
         </View>
-      </View>
 
-      {/* Challenge Content */}
-      <View style={styles.content}>
-        <Text style={styles.title}>{challenge.title}</Text>
-        <Text style={styles.description}>{challenge.description}</Text>
-        
-        {/* Challenge Stats */}
+        {/* Title and Description */}
+        <Text style={styles.title} numberOfLines={2}>{challenge.title}</Text>
+        <Text style={styles.description} numberOfLines={3}>{challenge.description}</Text>
+
+        {/* Stats Row */}
         <View style={styles.statsContainer}>
           <View style={styles.stat}>
-            <Ionicons name="trophy" size={16} color="#ffaa00" />
+            <Ionicons name="trophy" size={12} color="#00ffff" />
             <Text style={styles.statText}>{challenge.reward_points} pts</Text>
           </View>
           
           <View style={styles.stat}>
-            <Ionicons name="people" size={16} color="#00ffff" />
+            <Ionicons name="people" size={12} color="#00ffff" />
             <Text style={styles.statText}>{participants.length} joined</Text>
           </View>
           
           <View style={styles.stat}>
-            <Ionicons name="time" size={16} color="#ff0055" />
-            <Text style={styles.statText}>{timeRemaining}</Text>
+            <Ionicons name="time" size={12} color={timeRemaining.urgent ? "#ff0055" : "#00ffff"} />
+            <Text style={[styles.statText, timeRemaining.urgent && styles.urgentText]}>
+              {timeRemaining.text}
+            </Text>
           </View>
         </View>
 
         {/* Progress Bar */}
-        {showProgress && isJoined && userProgress && (
+        {showProgress && isJoined && (
           <View style={styles.progressContainer}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressText}>Your Progress</Text>
-              <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
-            </View>
             <View style={styles.progressBar}>
               <View 
                 style={[
@@ -202,65 +283,68 @@ const ChallengeCard = ({
                 ]} 
               />
             </View>
-            <Text style={styles.progressDetails}>
-              {userProgress.current} / {userProgress.target} {challenge.unit}
-            </Text>
+            <Text style={styles.progressText}>{Math.round(progress)}%</Text>
           </View>
         )}
 
         {/* Participants Preview */}
         {participants.length > 0 && (
           <View style={styles.participantsContainer}>
-            <Text style={styles.participantsTitle}>Participants</Text>
-            <View style={styles.participantsList}>
-              {participants.slice(0, 3).map((participant, index) => (
+            <Text style={styles.participantsLabel}>Participants:</Text>
+            <View style={styles.avatarsContainer}>
+              {participants.slice(0, 5).map((participant, index) => (
                 <PremiumAvatar
                   key={participant.id}
-                  size={30}
-                  source={participant.avatar_url ? { uri: participant.avatar_url } : null}
-                  isPremium={participant.is_premium}
-                  username={participant.username}
-                  style={[
-                    styles.participantAvatar,
-                    { zIndex: participants.length - index }
-                  ]}
+                  user={participant}
+                  size={24}
+                  style={[styles.avatar, { zIndex: participants.length - index }]}
                 />
               ))}
-              {participants.length > 3 && (
+              {participants.length > 5 && (
                 <View style={styles.moreParticipants}>
-                  <Text style={styles.moreParticipantsText}>+{participants.length - 3}</Text>
+                  <Text style={styles.moreText}>+{participants.length - 5}</Text>
                 </View>
               )}
             </View>
           </View>
         )}
-      </View>
 
-      {/* Action Button */}
-      <TouchableOpacity
-        style={[
-          styles.actionButton,
-          isJoined ? styles.leaveButton : styles.joinButton,
-          (isJoining || isLeaving) && styles.disabledButton
-        ]}
-        onPress={handleToggleParticipation}
-        disabled={isJoining || isLeaving}
-      >
-        <Ionicons 
-          name={isJoined ? 'exit' : 'add'} 
-          size={18} 
-          color={isJoined ? '#ff0055' : '#fff'} 
-        />
-        <Text style={[
-          styles.actionButtonText,
-          isJoined ? styles.leaveButtonText : styles.joinButtonText
-        ]}>
-          {isJoining ? 'Joining...' : 
-           isLeaving ? 'Leaving...' : 
-           isJoined ? 'Leave Challenge' : 'Join Challenge'}
-        </Text>
+        {/* Action Buttons */}
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              isJoined ? styles.leaveButton : styles.joinButton,
+              (isJoining || isLeaving) && styles.disabledButton
+            ]}
+            onPress={handleToggleParticipation}
+            disabled={isJoining || isLeaving}
+          >
+            {isJoining || isLeaving ? (
+              <ActivityIndicator size="small" color={isJoined ? "#ff0055" : "#000"} />
+            ) : (
+              <>
+                <Ionicons 
+                  name={isJoined ? "exit" : "add"} 
+                  size={16} 
+                  color={isJoined ? "#ff0055" : "#000"} 
+                />
+                <Text style={[styles.actionButtonText, isJoined && styles.leaveButtonText]}>
+                  {isJoined ? "Leave" : "Join"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.shareButton}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-outline" size={16} color="#00ffff" />
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
+    </Animated.View>
   );
 };
 
@@ -278,11 +362,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  cardContent: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   typeContainer: {
     flexDirection: 'row',
@@ -301,12 +388,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   difficultyContainer: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  difficultyBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+  difficultyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
   },
   difficultyText: {
     color: '#000',
@@ -357,24 +446,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     flexShrink: 1,
   },
+  urgentText: {
+    color: '#ff0055',
+    fontWeight: 'bold',
+  },
   progressContainer: {
     marginBottom: 16,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  progressText: {
-    color: '#00ffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  progressPercentage: {
-    color: '#00ff99',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   progressBar: {
     height: 8,
@@ -388,40 +465,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#00ff99',
     borderRadius: 4,
   },
-  progressDetails: {
-    color: '#888',
-    fontSize: 12,
-    textAlign: 'center',
+  progressText: {
+    color: '#00ffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   participantsContainer: {
     marginBottom: 16,
   },
-  participantsTitle: {
+  participantsLabel: {
     color: '#00ffff',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
-  participantsList: {
+  avatarsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  participantAvatar: {
+  avatar: {
     marginRight: -8,
   },
   moreParticipants: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(0, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
-  moreParticipantsText: {
+  moreText: {
     color: '#00ffff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  actionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   actionButton: {
     flexDirection: 'row',
@@ -459,6 +541,9 @@ const styles = StyleSheet.create({
   },
   leaveButtonText: {
     color: '#ff0055',
+  },
+  shareButton: {
+    padding: 8,
   },
 });
 

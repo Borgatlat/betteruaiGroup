@@ -1820,7 +1820,7 @@ const handleCreateGroup = async () => {
               console.log('View challenge:', challenge);
             }}
           />
-        ) : (
+                    ) : (
               <>
                 {/* Friend Suggestions Section */}
                 <View style={styles.suggestionsSection}>
@@ -1862,7 +1862,7 @@ const handleCreateGroup = async () => {
                       <FlatList
                         data={friendRequests}
                         keyExtractor={item => item.id}
-                        renderItem={({ item }) => (
+                                                renderItem={({ item }) => (
                           <View style={styles.requestRow}>
                             <PremiumAvatar
                               size={40}

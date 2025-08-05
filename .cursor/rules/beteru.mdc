@@ -1,0 +1,124 @@
+---
+description: ui design, colorscheme, use it whenenever a change is needed to the ui or for database changes as wel
+globs: 
+alwaysApply: false
+---
+
+
+{
+  "name": "BetterU Project Rules",
+  "description": "Personalized development guidelines for the BetterU fitness and wellness app.",
+  "rules": [
+    {
+      "category": "Database Structure",
+      "rules": [
+        "All user-related tables must use 'id' (UUID) as the primary key, referencing auth.users(id).",
+        "Do not use legacy columns like 'user_id' or 'profile_id'; only use 'id' for user linkage.",
+        "All tables must have Row Level Security (RLS) enabled to protect user data.",
+        "Include 'created_at' and 'updated_at' timestamps on all tables for auditability.",
+        "Use composite unique constraints for daily tracking tables (e.g., (profile_id, date) for calorie/water tracking).",
+        "Keep migrations organized and document any schema changes in the /supabase/migrations directory."
+      ]
+    },
+    {
+      "category": "Authentication & User Management",
+      "rules": [
+        "Use Supabase Auth for all user authentication and session management.",
+        "On first login, automatically create a user settings row with BetterU defaults.",
+        "Default user settings: use_imperial: false, calorie_goal: 2000, water_goal_ml: 2000, daily_reminders: true, rest_time_seconds: 90.",
+        "User profiles should store full name, email, and any premium status or onboarding flags.",
+        "All user data must be scoped to the authenticated user via RLS."
+      ]
+    },
+    {
+      "category": "Code Structure",
+      "rules": [
+        "Organize screens in /app/(tabs), reusable components in /app/components, and context providers in /context.",
+        "Use React Context for global state (auth, user, settings, tracking, etc).",
+        "Keep all business logic (e.g., daily reset, tracking, onboarding) in context or utility files, not in UI components.",
+        "Use clear, descriptive file and variable names that reflect the BetterU domain (e.g., 'TrackingContext', 'forceDailyReset').",
+        "Document complex logic and flows with comments, especially for onboarding and daily reset logic."
+      ]
+    },
+    {
+      "category": "Data Persistence",
+      "rules": [
+        "Use AsyncStorage for local caching of user settings and daily tracking data.",
+        "Always sync local changes with Supabase to ensure data consistency across devices.",
+        "Handle offline scenarios gracefully: allow local changes and sync when online.",
+        "Implement robust error handling for all data operations, with user-friendly error messages."
+      ]
+    },
+    {
+      "category": "Security Rules",
+      "rules": [
+        "All database queries must respect RLS policies and never expose another user's data.",
+        "Always check user authentication before performing any data operation.",
+        "Never store sensitive data (like passwords or tokens) in AsyncStorage or client-side code.",
+        "Log errors for debugging, but never log sensitive user information."
+      ]
+    },
+    {
+      "category": "Performance Guidelines",
+      "rules": [
+        "Show loading indicators (ActivityIndicator) during all async operations.",
+        "Cache frequently accessed data (e.g., user settings, daily stats) for a smooth user experience.",
+        "Use efficient Supabase queries (e.g., .single() for unique records, .upsert for daily tracking).",
+        "Optimize for fast startup and quick navigation between tabs."
+      ]
+    },
+    {
+      "category": "Code Style",
+      "rules": [
+        "Use async/await for all asynchronous code.",
+        "Handle all errors with try/catch and provide fallback UI or messages.",
+        "Use camelCase for variables and functions, PascalCase for components.",
+        "Comment all non-obvious logic, especially around daily reset, onboarding, and premium features.",
+        "Follow React and React Native best practices for hooks, context, and component structure."
+      ]
+    },
+    {
+      "category": "Testing Requirements",
+      "rules": [
+        "Test all database operations, especially daily reset and onboarding flows.",
+        "Verify RLS policies by attempting cross-user access (should always fail).",
+        "Test offline/online transitions for data sync.",
+        "Test UI and data persistence on both iOS and Android devices.",
+        "Test error handling by simulating network and Supabase failures."
+      ]
+    },
+    {
+      "category": "Deployment Rules",
+      "rules": [
+        "Run all migrations in order before deploying new versions.",
+        "Verify RLS policies and Supabase triggers after every migration.",
+        "Test authentication, onboarding, and daily reset flows after deployment.",
+        "Ensure all branding (logo, colors, splash) is correct in production builds."
+      ]
+    },
+    {
+      "category": "Maintenance",
+      "rules": [
+        "Keep all dependencies up to date and monitor for security advisories.",
+        "Regularly back up the Supabase database.",
+        "Document all schema and business logic changes in the repo.",
+        "Review and clean up unused code, assets, and migrations regularly."
+      ]
+    },
+    {
+      "category": "UI and Styling",
+      "rules": [
+        "The BetterU theme is cyan (#00ffff) and black (#000000); use these as the foundation for all screens and components.",
+        "Accent colors should complement the cyan/black palette and maintain high contrast for readability.",
+        "Typography should be bold and modern, with clear hierarchy (e.g., large bold headers, readable body text).",
+        "Use StyleSheet for all component styles; avoid inline styles except for dynamic values.",
+        "Maintain spacing and alignment for a visually balanced layout, with generous padding and margin where appropriate.",
+        "Test UI on multiple device sizes and platforms to ensure consistency.",
+        "All interactive elements (buttons, inputs) must be clearly visible, have sufficient touch targets, and use accessible labels.",
+        "Branding should be consistent: use the BetterU logo and iconography where appropriate, and keep the interface clean and uncluttered.",
+        "Motivational quotes and Bible verses should be displayed in a visually appealing card at the top of the home screen.",
+        "The typewriter intro screen should use the BetterU font and theme colors, and appear before all other screens."
+
+      ] }
+  ]}
+

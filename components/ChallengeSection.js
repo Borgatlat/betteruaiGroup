@@ -8,11 +8,14 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  Alert
+  Alert,
+  Animated,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../context/UserContext';
 import ChallengeCard from './ChallengeCard';
+import ChallengeDetails from './ChallengeDetails';
 import { 
   getRecommendations, 
   getTrendingChallenges, 
@@ -20,6 +23,8 @@ import {
   getChallengesByType 
 } from '../utils/challengeRecommendationEngine';
 import { supabase } from '../lib/supabase';
+
+const { width } = Dimensions.get('window');
 
 const ChallengeSection = ({ onViewChallenge }) => {
   const { userProfile } = useUser();
@@ -36,6 +41,18 @@ const ChallengeSection = ({ onViewChallenge }) => {
   // UI state
   const [selectedType, setSelectedType] = useState('all');
   const [showAllTypes, setShowAllTypes] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [showChallengeDetails, setShowChallengeDetails] = useState(false);
+  const [userStats, setUserStats] = useState({
+    totalChallenges: 0,
+    completedChallenges: 0,
+    currentStreak: 0,
+    totalPoints: 0
+  });
+
+  // Animation values
+  const tabIndicatorAnim = useState(new Animated.Value(0))[0];
+  const fadeAnim = useState(new Animated.Value(1))[0];
 
   // Challenge types for filtering
   const challengeTypes = [
@@ -49,6 +66,37 @@ const ChallengeSection = ({ onViewChallenge }) => {
     { key: 'learning', label: 'Learning', icon: 'school' },
     { key: 'creativity', label: 'Creativity', icon: 'brush' }
   ];
+
+  // Load user challenge statistics
+  const loadUserStats = async () => {
+    if (!userProfile?.id) return;
+    
+    try {
+      const { data: participations } = await supabase
+        .from('challenge_participants')
+        .select('*')
+        .eq('user_id', userProfile.id);
+
+      const { data: completedChallenges } = await supabase
+        .from('challenge_participants')
+        .select('*, challenges(*)')
+        .eq('user_id', userProfile.id)
+        .eq('completed', true);
+
+      const totalChallenges = participations?.length || 0;
+      const completed = completedChallenges?.length || 0;
+      const totalPoints = completedChallenges?.reduce((sum, p) => sum + (p.challenges?.reward_points || 0), 0) || 0;
+
+      setUserStats({
+        totalChallenges,
+        completedChallenges: completed,
+        currentStreak: Math.floor(Math.random() * 10) + 1, // Placeholder
+        totalPoints
+      });
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+    }
+  };
 
   // Load all challenge data
   const loadChallenges = async () => {
@@ -79,9 +127,11 @@ const ChallengeSection = ({ onViewChallenge }) => {
       }
       setChallengesByType(typeChallenges);
 
+      // Load user stats
+      await loadUserStats();
+
     } catch (error) {
       console.error('Error loading challenges:', error);
-      // Don't show alert for every error, just log it
       setRecommendations([]);
       setTrending([]);
       setUserChallenges([]);
@@ -98,6 +148,16 @@ const ChallengeSection = ({ onViewChallenge }) => {
     setRefreshing(false);
   };
 
+  // Animate tab indicator
+  useEffect(() => {
+    const tabIndex = ['recommended', 'trending', 'my', 'browse'].indexOf(activeTab);
+    Animated.timing(tabIndicatorAnim, {
+      toValue: tabIndex * (width / 4),
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab]);
+
   // Handle challenge join/leave
   const handleJoinChallenge = (challengeId) => {
     // Update local state optimistically
@@ -109,6 +169,7 @@ const ChallengeSection = ({ onViewChallenge }) => {
       )
     );
     setUserChallenges(prev => [...prev, { id: challengeId }]);
+    loadUserStats(); // Refresh stats
   };
 
   const handleLeaveChallenge = (challengeId) => {
@@ -121,6 +182,7 @@ const ChallengeSection = ({ onViewChallenge }) => {
       )
     );
     setUserChallenges(prev => prev.filter(challenge => challenge.id !== challengeId));
+    loadUserStats(); // Refresh stats
   };
 
   // Get participants for a challenge
@@ -137,7 +199,8 @@ const ChallengeSection = ({ onViewChallenge }) => {
             is_premium
           )
         `)
-        .eq('challenge_id', challengeId);
+        .eq('challenge_id', challengeId)
+        .limit(10);
 
       return participants?.map(p => p.profiles).filter(Boolean) || [];
     } catch (error) {
@@ -146,23 +209,29 @@ const ChallengeSection = ({ onViewChallenge }) => {
     }
   };
 
+  // Handle challenge view details
+  const handleViewChallengeDetails = (challenge) => {
+    setSelectedChallenge(challenge);
+    setShowChallengeDetails(true);
+  };
+
   // Render challenge card with participants
   const renderChallengeCard = ({ item, participants = [] }) => {
     try {
       const challenge = item.challenge || item;
       const isJoined = userChallenges.some(uc => uc.id === challenge.id);
-      const userProgress = userChallenges.find(uc => uc.id === challenge.id)?.userProgress;
+      const userProgress = isJoined ? item.userProgress : null;
 
       return (
         <ChallengeCard
           challenge={challenge}
-          isJoined={isJoined}
-          userProgress={userProgress ? { current: userProgress, target: challenge.target } : null}
-          participants={participants}
           onJoin={handleJoinChallenge}
           onLeave={handleLeaveChallenge}
-          onViewDetails={onViewChallenge}
-          showProgress={isJoined}
+          onViewDetails={handleViewChallengeDetails}
+          isJoined={isJoined}
+          userProgress={userProgress}
+          participants={participants}
+          showProgress={true}
         />
       );
     } catch (error) {
@@ -173,225 +242,184 @@ const ChallengeSection = ({ onViewChallenge }) => {
 
   // Render tab content
   const renderTabContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00ffff" />
+          <Text style={styles.loadingText}>Loading challenges...</Text>
+        </View>
+      );
+    }
+
+    let challenges = [];
+    let title = '';
+    let subtitle = '';
+
     switch (activeTab) {
       case 'recommended':
-        return (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
-            <Text style={styles.sectionSubtitle}>
-              Based on your interests and activity
-            </Text>
-            {loading ? (
-              <ActivityIndicator color="#00ffff" style={styles.loader} />
-            ) : recommendations.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="trophy-outline" size={48} color="#666" />
-                <Text style={styles.emptyStateText}>No recommendations yet</Text>
-                <Text style={styles.emptyStateSubtext}>
-                  Complete some activities to get personalized challenge recommendations
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={recommendations}
-                renderItem={({ item }) => renderChallengeCard({ item })}
-                keyExtractor={item => `rec_${item.challenge.id}`}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
-          </View>
-        );
-
+        challenges = recommendations;
+        title = 'Recommended for You';
+        subtitle = 'Based on your activity and preferences';
+        break;
       case 'trending':
-        return (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Trending Challenges</Text>
-            <Text style={styles.sectionSubtitle}>
-              Most popular challenges right now
-            </Text>
-            {loading ? (
-              <ActivityIndicator color="#00ffff" style={styles.loader} />
-            ) : trending.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="trending-up-outline" size={48} color="#666" />
-                <Text style={styles.emptyStateText}>No trending challenges</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={trending}
-                renderItem={({ item }) => renderChallengeCard({ item })}
-                keyExtractor={item => `trend_${item.id}`}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
-          </View>
-        );
-
-      case 'my-challenges':
-        return (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>My Active Challenges</Text>
-            <Text style={styles.sectionSubtitle}>
-              Challenges you're currently participating in
-            </Text>
-            {loading ? (
-              <ActivityIndicator color="#00ffff" style={styles.loader} />
-            ) : userChallenges.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="person-outline" size={48} color="#666" />
-                <Text style={styles.emptyStateText}>No active challenges</Text>
-                <Text style={styles.emptyStateSubtext}>
-                  Join some challenges to see them here
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={userChallenges}
-                renderItem={({ item }) => renderChallengeCard({ item })}
-                keyExtractor={item => `my_${item.id}`}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
-          </View>
-        );
-
+        challenges = trending;
+        title = 'Trending Challenges';
+        subtitle = 'Most popular challenges right now';
+        break;
+      case 'my':
+        challenges = userChallenges;
+        title = 'My Challenges';
+        subtitle = `You're participating in ${userChallenges.length} challenges`;
+        break;
       case 'browse':
-        return (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Browse Challenges</Text>
-            <Text style={styles.sectionSubtitle}>
-              Explore challenges by category
-            </Text>
-            
-            {/* Type Filter */}
-            <View style={styles.typeFilter}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.typeFilterContent}
-              >
-                {challengeTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type.key}
-                    style={[
-                      styles.typeButton,
-                      selectedType === type.key && styles.selectedTypeButton
-                    ]}
-                    onPress={() => setSelectedType(type.key)}
-                  >
-                    <Ionicons 
-                      name={type.icon} 
-                      size={16} 
-                      color={selectedType === type.key ? '#000' : '#00ffff'} 
-                    />
-                    <Text style={[
-                      styles.typeButtonText,
-                      selectedType === type.key && styles.selectedTypeButtonText
-                    ]}>
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Challenges by selected type */}
-            {loading ? (
-              <ActivityIndicator color="#00ffff" style={styles.loader} />
-            ) : (
-              <FlatList
-                data={selectedType === 'all' 
-                  ? Object.values(challengesByType).flat() 
-                  : challengesByType[selectedType] || []
-                }
-                renderItem={({ item }) => renderChallengeCard({ item })}
-                keyExtractor={item => `browse_${item.id}`}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
-          </View>
-        );
-
-      default:
-        return null;
+        challenges = challengesByType[selectedType] || [];
+        title = `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Challenges`;
+        subtitle = `Browse ${selectedType} challenges`;
+        break;
     }
-  };
 
-  // Load challenges on mount
-  useEffect(() => {
-    loadChallenges();
-  }, [userProfile?.id]);
+    if (challenges.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="trophy-outline" size={64} color="#666" />
+          <Text style={styles.emptyTitle}>No challenges found</Text>
+          <Text style={styles.emptySubtitle}>
+            {activeTab === 'my' 
+              ? 'Join some challenges to see them here!'
+              : 'Check back later for new challenges'
+            }
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.tabContent}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        </View>
+        
+        <FlatList
+          data={challenges}
+          renderItem={renderChallengeCard}
+          keyExtractor={(item) => (item.challenge?.id || item.id).toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.challengesList}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Stats */}
       <View style={styles.header}>
-        <Text style={styles.title}>Challenges</Text>
-        <Text style={styles.subtitle}>Push your limits, earn rewards</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Challenges</Text>
+          <Text style={styles.subtitle}>Compete, grow, and earn rewards</Text>
+        </View>
+        
+        {/* User Stats */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{userStats.totalChallenges}</Text>
+            <Text style={styles.statLabel}>Joined</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{userStats.completedChallenges}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{userStats.currentStreak}</Text>
+            <Text style={styles.statLabel}>Day Streak</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{userStats.totalPoints}</Text>
+            <Text style={styles.statLabel}>Points</Text>
+          </View>
+        </View>
       </View>
 
       {/* Tab Navigation */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'recommended' && styles.activeTab]}
-          onPress={() => setActiveTab('recommended')}
+      <View style={styles.tabContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabScroll}
         >
-          <Ionicons 
-            name="star" 
-            size={18} 
-            color={activeTab === 'recommended' ? '#00ffff' : '#666'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'recommended' && styles.activeTabText]}>
-            Recommended
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'trending' && styles.activeTab]}
-          onPress={() => setActiveTab('trending')}
-        >
-          <Ionicons 
-            name="trending-up" 
-            size={18} 
-            color={activeTab === 'trending' ? '#00ffff' : '#666'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'trending' && styles.activeTabText]}>
-            Trending
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'my-challenges' && styles.activeTab]}
-          onPress={() => setActiveTab('my-challenges')}
-        >
-          <Ionicons 
-            name="person" 
-            size={18} 
-            color={activeTab === 'my-challenges' ? '#00ffff' : '#666'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'my-challenges' && styles.activeTabText]}>
-            My Challenges
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'browse' && styles.activeTab]}
-          onPress={() => setActiveTab('browse')}
-        >
-          <Ionicons 
-            name="grid" 
-            size={18} 
-            color={activeTab === 'browse' ? '#00ffff' : '#666'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'browse' && styles.activeTabText]}>
-            Browse
-          </Text>
-        </TouchableOpacity>
+          {[
+            { key: 'recommended', label: 'Recommended', icon: 'star' },
+            { key: 'trending', label: 'Trending', icon: 'trending-up' },
+            { key: 'my', label: 'My Challenges', icon: 'person' },
+            { key: 'browse', label: 'Browse', icon: 'grid' }
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tab,
+                activeTab === tab.key && styles.activeTab
+              ]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Ionicons 
+                name={tab.icon} 
+                size={16} 
+                color={activeTab === tab.key ? '#00ffff' : '#666'} 
+              />
+              <Text style={[
+                styles.tabText,
+                activeTab === tab.key && styles.activeTabText
+              ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        
+        {/* Animated Tab Indicator */}
+        <Animated.View 
+          style={[
+            styles.tabIndicator,
+            { transform: [{ translateX: tabIndicatorAnim }] }
+          ]} 
+        />
       </View>
+
+      {/* Type Filter (for Browse tab) */}
+      {activeTab === 'browse' && (
+        <View style={styles.typeFilterContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.typeFilterScroll}
+          >
+            {challengeTypes.map((type) => (
+              <TouchableOpacity
+                key={type.key}
+                style={[
+                  styles.typeButton,
+                  selectedType === type.key && styles.selectedTypeButton
+                ]}
+                onPress={() => setSelectedType(type.key)}
+              >
+                <Ionicons 
+                  name={type.icon} 
+                  size={14} 
+                  color={selectedType === type.key ? '#000' : '#00ffff'} 
+                />
+                <Text style={[
+                  styles.typeButtonText,
+                  selectedType === type.key && styles.selectedTypeButtonText
+                ]}>
+                  {type.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Content */}
       <ScrollView
@@ -400,14 +428,22 @@ const ChallengeSection = ({ onViewChallenge }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#00ffff"
             colors={['#00ffff']}
+            tintColor="#00ffff"
           />
         }
-        showsVerticalScrollIndicator={false}
       >
         {renderTabContent()}
       </ScrollView>
+
+      {/* Challenge Details Modal */}
+      <ChallengeDetails
+        challenge={selectedChallenge}
+        visible={showChallengeDetails}
+        onClose={() => setShowChallengeDetails(false)}
+        onJoin={handleJoinChallenge}
+        onLeave={handleLeaveChallenge}
+      />
     </View>
   );
 };
@@ -422,6 +458,9 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
   },
+  headerContent: {
+    marginBottom: 10,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -435,17 +474,37 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     flexWrap: 'wrap',
   },
-  tabBar: {
+  statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    justifyContent: 'space-around',
+    marginTop: 10,
+    paddingHorizontal: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#00ffff',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  tabContainer: {
+    position: 'relative',
     marginBottom: 20,
     backgroundColor: 'rgba(0, 255, 255, 0.05)',
     borderRadius: 16,
     marginHorizontal: 20,
     padding: 4,
   },
+  tabScroll: {
+    paddingHorizontal: 4,
+  },
   tab: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -468,55 +527,19 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#00ffff',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    height: 3,
+    backgroundColor: '#00ffff',
+    borderRadius: 2,
+    width: width / 4,
   },
-  tabContent: {
-    paddingBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 6,
-    flexWrap: 'wrap',
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#888',
+  typeFilterContainer: {
     marginBottom: 20,
-    lineHeight: 18,
-    flexWrap: 'wrap',
+    marginHorizontal: 20,
   },
-  loader: {
-    marginTop: 40,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    backgroundColor: 'rgba(0, 255, 255, 0.03)',
-    borderRadius: 20,
-    marginTop: 20,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 12,
-    fontWeight: '600',
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 20,
-  },
-  typeFilter: {
-    marginBottom: 20,
-  },
-  typeFilterContent: {
+  typeFilterScroll: {
     paddingHorizontal: 4,
   },
   typeButton: {
@@ -545,6 +568,64 @@ const styles = StyleSheet.create({
   },
   selectedTypeButtonText: {
     color: '#000',
+  },
+  tabContent: {
+    paddingBottom: 20,
+  },
+  sectionHeader: {
+    marginBottom: 6,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 20,
+    lineHeight: 18,
+    flexWrap: 'wrap',
+  },
+  challengesList: {
+    paddingHorizontal: 4,
+  },
+  separator: {
+    height: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#888',
+    fontSize: 16,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    backgroundColor: 'rgba(0, 255, 255, 0.03)',
+    borderRadius: 20,
+    marginTop: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 12,
+    fontWeight: '600',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
   },
 });
 
