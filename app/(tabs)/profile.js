@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { PremiumAvatar } from '../../app/components/PremiumAvatar';
 import { Share } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 const ProfileScreen = () => {
@@ -36,6 +37,7 @@ const ProfileScreen = () => {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const { user, signOut } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
 
   const GOALS = [
@@ -569,7 +571,7 @@ const ProfileScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20, paddingBottom: Math.max(100, insets.bottom + 20) }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerSection}>
@@ -823,7 +825,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
-    paddingTop: 60,
   },
   centered: {
     justifyContent: 'center',

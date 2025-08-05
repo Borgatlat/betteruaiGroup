@@ -1,12 +1,14 @@
 "use client";
 
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const CategoryExercises = () => {
+const CategoryExercisesScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const exercises = JSON.parse(params.exercises);
   const title = params.title;
   const color = params.color;
@@ -26,8 +28,8 @@ const CategoryExercises = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Math.max(20, insets.bottom + 20) }}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -65,7 +67,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   backButton: {
     padding: 10,
@@ -114,4 +116,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CategoryExercises; 
+export default CategoryExercisesScreen; 

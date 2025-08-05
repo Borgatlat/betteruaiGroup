@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../context/UserContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Organized exercise categories for better UX
 const exerciseCategories = {
@@ -24,6 +25,7 @@ const CreateWorkoutScreen = () => {
   const [saving, setSaving] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Chest');
   const { isPremium } = useUser();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   const toggleExercise = (exercise) => {
     try {
@@ -87,7 +89,7 @@ const CreateWorkoutScreen = () => {
   return (
     <View style={styles.screenContainer}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity style={styles.exitButton} onPress={() => router.replace('/(tabs)/workout')}>
           <Ionicons name="close" size={24} color="#00ffff" />
         </TouchableOpacity>
@@ -249,7 +251,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',

@@ -14,6 +14,7 @@ import { CalorieTracker } from '../../components/CalorieTracker';
 import * as ImagePicker from 'expo-image-picker';
 import { analyzeFoodWithAI, estimateCaloriesFromDescription } from '../../utils/aiFoodDetection';
 import { getUsageStats } from '../../utils/usageTracker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -226,6 +227,7 @@ const HomeScreen = () => {
   const [detectedFood, setDetectedFood] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const calorieTrackerRef = useRef(null);
+  const insets = useSafeAreaInsets();
 
   const activityData = {
     labels: ["Workout", "Mental", "Water", "Calories"],
@@ -566,8 +568,8 @@ const HomeScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]}>
-      <View style={styles.header}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(80, insets.bottom + 20) }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.greeting}>
           <Text style={styles.greetingText}>Good Afternoon</Text>
           <Text style={styles.nameText}>{userProfile?.full_name || 'User'}</Text>
@@ -1432,7 +1434,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
     paddingBottom: 20,
   },
   greeting: {

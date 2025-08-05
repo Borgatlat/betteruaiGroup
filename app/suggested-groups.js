@@ -5,10 +5,12 @@ import { supabase } from '../lib/supabase';
 import { useUser } from '../context/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { GroupAvatar } from './components/GroupAvatar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SuggestedGroupsScreen = () => {
   const router = useRouter();
   const { userProfile } = useUser();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const [suggestedGroups, setSuggestedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState({});
@@ -175,7 +177,7 @@ const SuggestedGroupsScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#111',
-    paddingTop: 48,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   loadingContainer: {
     flex: 1,

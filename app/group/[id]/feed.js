@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import FeedCard from '../../components/FeedCard';
 import { Ionicons } from '@expo/vector-icons';
 import { PremiumAvatar } from '../../components/PremiumAvatar';
 import { useAuth } from '../../../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function GroupFeedScreen() {
   const { id, name } = useLocalSearchParams();
@@ -13,6 +14,7 @@ export default function GroupFeedScreen() {
   const [feed, setFeed] = useState([]);
   const router = useRouter();
   const { currentUserId } = useAuth();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     fetchGroupFeed();
@@ -269,7 +271,7 @@ export default function GroupFeedScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#00ffff" />
         </TouchableOpacity>
@@ -302,7 +304,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#111',
-    paddingTop: 60,
   },
   header: {
     flexDirection: 'row',

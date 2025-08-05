@@ -5,10 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import FeedCard from '../components/FeedCard';
 import { PremiumAvatar } from '../components/PremiumAvatar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FriendProfileScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const [profile, setProfile] = useState(null);
   const [prs, setPRs] = useState([]);
   const [mentalSessions, setMentalSessions] = useState([]);
@@ -356,7 +358,7 @@ const FriendProfileScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20, paddingBottom: Math.max(32, insets.bottom + 20) }]} showsVerticalScrollIndicator={false}>
       {/* Header with Back Button */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)/community')}>
@@ -507,7 +509,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111',
     paddingHorizontal: 20,
-    paddingTop: 60,
   },
   scrollContent: {
     paddingBottom: 32,

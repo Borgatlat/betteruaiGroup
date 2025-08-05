@@ -6,12 +6,14 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MentalSessionLog = () => {
   const { user } = useAuth();
   const router = useRouter();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   useEffect(() => {
     fetchSessions();
@@ -88,7 +90,7 @@ const MentalSessionLog = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
           onPress={() => router.back()}
           style={styles.backButton}
@@ -149,7 +151,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   backButton: {
     marginRight: 15,

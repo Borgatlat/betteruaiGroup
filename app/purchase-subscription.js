@@ -8,10 +8,12 @@ import { useAuth } from '../context/AuthContext';
 import { getOfferings, purchasePackage, restorePurchases, initializePurchases } from '../lib/purchases';
 import { Purchases } from 'react-native-purchases';
 import { supabase } from '../lib/supabase';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function PurchaseSubscriptionScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
   const [loading, setLoading] = useState(false);
   const [offerings, setOfferings] = useState(null);
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -239,8 +241,8 @@ function PurchaseSubscriptionScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(tabs)/settings')}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + 100 }]}>
+      <TouchableOpacity style={[styles.backButton, { top: insets.top + 20 }]} onPress={() => router.replace('/(tabs)/settings')}>
         <Ionicons name="chevron-back" size={28} color="#00ffff" />
         <Text style={styles.backButtonText}>Back to Settings</Text>
       </TouchableOpacity>
@@ -465,12 +467,12 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingTop: 140,
+    paddingTop: 100, // Dynamic safe area padding will be applied inline
     paddingBottom: 100,
   },
   backButton: {
     position: 'absolute',
-    top: 60,
+    top: 20, // Dynamic safe area padding will be applied inline
     left: 20,
     flexDirection: 'row',
     alignItems: 'center',

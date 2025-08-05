@@ -7,6 +7,7 @@ import { useTracking } from '../context/TrackingContext';
 import { supabase } from '../lib/supabase';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MentalSessionSummary = () => {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ const MentalSessionSummary = () => {
   const duration = params.duration;
   const [calmnessLevel, setCalmnessLevel] = useState(3);
   const [notes, setNotes] = useState('');
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   const handleSave = async () => {
     try {
@@ -52,7 +54,7 @@ const MentalSessionSummary = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <Text style={styles.title}>Session Summary</Text>
       
       <View style={styles.summaryCard}>
@@ -109,7 +111,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
     padding: 20,
-    paddingTop: 60,
+    paddingBottom: 20, // Will be adjusted dynamically for safe area
   },
   title: {
     fontSize: 24,

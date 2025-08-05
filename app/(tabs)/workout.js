@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useUser } from '../../context/UserContext';
 import { generateWorkout } from '../../utils/aiUtils';
 import { FloatingAITrainer } from '../../components/FloatingAITrainer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const WorkoutScreen = () => {
   const router = useRouter();
@@ -17,6 +18,7 @@ const WorkoutScreen = () => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [userWorkouts, setUserWorkouts] = useState([]);
   const { isPremium } = useUser();
+  const insets = useSafeAreaInsets(); // Hook to get device-specific safe area insets
 
   const fetchWorkoutLogs = async () => {
     try {
@@ -457,8 +459,8 @@ const WorkoutScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: Math.max(20, insets.bottom + 20) }}>
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <View style={styles.sectionHeader}>
           <Text style={styles.title}>Workouts</Text>
             <TouchableOpacity 
@@ -994,7 +996,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 20, // Dynamic safe area padding will be applied inline
   },
   sectionHeader: {
     flexDirection: 'row',
