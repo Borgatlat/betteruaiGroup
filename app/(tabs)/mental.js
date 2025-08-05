@@ -10,6 +10,14 @@ import { supabase } from '../../lib/supabase';
 import MoodGraph from '../components/MoodGraph';
 import MentalSessionSummary from '../components/MentalSessionSummary';
 
+// Helper function to format time in MM:SS format from seconds
+const formatTime = (seconds) => {
+  if (typeof seconds !== 'number' || isNaN(seconds)) return '00:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
 const mentalSessions = {
   meditation: [
     {
