@@ -463,6 +463,24 @@ const MentalScreen = () => {
           {/* Categories */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Choose your practice</Text>
+            
+            {/* Talk it Out Card - Special AI Therapist Card */}
+            <TouchableOpacity
+              style={styles.talkItOutCard}
+              onPress={() => router.push('/trainer')}
+            >
+              <View style={styles.talkItOutIconContainer}>
+                <Ionicons name="chatbubbles" size={28} color="#fff" />
+              </View>
+              <View style={styles.talkItOutContent}>
+                <Text style={styles.talkItOutTitle}>Talk it Out</Text>
+                <Text style={styles.talkItOutDescription}>Chat with your AI therapist for personalized support and guidance</Text>
+              </View>
+              <View style={styles.talkItOutBadge}>
+                <Text style={styles.talkItOutBadgeText}>AI</Text>
+              </View>
+            </TouchableOpacity>
+            
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
@@ -844,6 +862,61 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginLeft: 10,
+  },
+  talkItOutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
+    shadowColor: '#ff6b6b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  talkItOutIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+    marginRight: 15,
+    shadowColor: '#ff6b6b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  talkItOutContent: {
+    flex: 1,
+  },
+  talkItOutTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  talkItOutDescription: {
+    fontSize: 14,
+    color: '#ccc',
+    lineHeight: 18,
+  },
+  talkItOutBadge: {
+    backgroundColor: 'rgba(255, 107, 107, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 10,
+  },
+  talkItOutBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   activeSessionContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
