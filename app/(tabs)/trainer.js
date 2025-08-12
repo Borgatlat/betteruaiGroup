@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTracking } from '../../context/TrackingContext';
 import { LoadingDots } from '../../components/LoadingDots';
+import SmartUpgradePrompt from '../components/SmartUpgradePrompt';
 import { ensureApiKeyAvailable } from '../../utils/apiConfig';
 
 const TrainerScreen = () => {
@@ -23,10 +24,14 @@ const TrainerScreen = () => {
   const { stats, trackingData, mood } = useTracking();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradePromptType, setUpgradePromptType] = useState('ai_limit');
   const flatListRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const loadingOpacity = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+
+
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -57,6 +62,13 @@ const TrainerScreen = () => {
 
   const handleSendMessage = async () => {
     if (!input.trim() || loading || isLoading) return;
+
+    // Check if user has reached the limit
+    if (messageCount >= MAX_DAILY_MESSAGES && !isPremium) {
+      setShowUpgradePrompt(true);
+      setUpgradePromptType('ai_limit');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -163,7 +175,14 @@ const TrainerScreen = () => {
   ];
 
   const handlePresetQuestion = async (question) => {
-    if (loading || isLoading || messageCount >= MAX_DAILY_MESSAGES) return;
+    if (loading || isLoading) return;
+    
+    // Check if user has reached the limit
+    if (messageCount >= MAX_DAILY_MESSAGES && !isPremium) {
+      setShowUpgradePrompt(true);
+      setUpgradePromptType('ai_limit');
+      return;
+    }
     
     setLoading(true);
     try {
@@ -322,6 +341,19 @@ const TrainerScreen = () => {
           </BlurView>
         </SafeAreaView>
       </LinearGradient>
+      
+      {/* Smart Upgrade Prompt */}
+      <SmartUpgradePrompt
+        visible={showUpgradePrompt}
+        type={upgradePromptType}
+        currentUsage={messageCount}
+        maxUsage={MAX_DAILY_MESSAGES}
+        onClose={() => setShowUpgradePrompt(false)}
+        onUpgrade={() => {
+          setShowUpgradePrompt(false);
+          // Analytics tracking could be added here
+        }}
+      />
     </KeyboardAvoidingView>
   );
 };

@@ -64,7 +64,13 @@ const ChallengeSection = ({ onViewChallenge }) => {
     { key: 'sleep', label: 'Sleep', icon: 'moon' },
     { key: 'social', label: 'Social', icon: 'people' },
     { key: 'learning', label: 'Learning', icon: 'school' },
-    { key: 'creativity', label: 'Creativity', icon: 'brush' }
+    { key: 'creativity', label: 'Creativity', icon: 'brush' },
+    { key: 'streak', label: 'Streaks', icon: 'flame' },
+    { key: 'achievement', label: 'Achievements', icon: 'trophy' },
+    { key: 'group', label: 'Group', icon: 'people-circle' },
+    { key: 'daily', label: 'Daily', icon: 'calendar' },
+    { key: 'weekly', label: 'Weekly', icon: 'calendar-outline' },
+    { key: 'monthly', label: 'Monthly', icon: 'calendar-clear' }
   ];
 
   // Load user challenge statistics
@@ -83,15 +89,31 @@ const ChallengeSection = ({ onViewChallenge }) => {
         .eq('user_id', userProfile.id)
         .eq('completed', true);
 
+      const { data: achievements } = await supabase
+        .from('user_achievements')
+        .select('*')
+        .eq('user_id', userProfile.id);
+
+      const { data: currentStreaks } = await supabase
+        .from('challenge_participants')
+        .select('*, challenges(*)')
+        .eq('user_id', userProfile.id)
+        .eq('completed', false)
+        .gte('last_activity', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
       const totalChallenges = participations?.length || 0;
       const completed = completedChallenges?.length || 0;
       const totalPoints = completedChallenges?.reduce((sum, p) => sum + (p.challenges?.reward_points || 0), 0) || 0;
+      const achievementsEarned = achievements?.length || 0;
+      const activeStreaks = currentStreaks?.length || 0;
 
       setUserStats({
         totalChallenges,
         completedChallenges: completed,
-        currentStreak: Math.floor(Math.random() * 10) + 1, // Placeholder
-        totalPoints
+        currentStreak: activeStreaks,
+        totalPoints,
+        achievementsEarned,
+        completionRate: totalChallenges > 0 ? Math.round((completed / totalChallenges) * 100) : 0
       });
     } catch (error) {
       console.error('Error loading user stats:', error);
@@ -333,11 +355,20 @@ const ChallengeSection = ({ onViewChallenge }) => {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{userStats.currentStreak}</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
+            <Text style={styles.statLabel}>Active</Text>
           </View>
+         
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{userStats.totalPoints}</Text>
             <Text style={styles.statLabel}>Points</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{userStats.achievementsEarned}</Text>
+            <Text style={styles.statLabel}>Achievements</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{userStats.completionRate}%</Text>
+            <Text style={styles.statLabel}>Success Rate</Text>
           </View>
         </View>
       </View>

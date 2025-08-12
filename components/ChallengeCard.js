@@ -64,9 +64,35 @@ const ChallengeCard = ({
       'sleep': 'moon',
       'social': 'people',
       'learning': 'school',
-      'creativity': 'brush'
+      'creativity': 'brush',
+      'streak': 'flame',
+      'achievement': 'trophy',
+      'group': 'people-circle',
+      'daily': 'calendar',
+      'weekly': 'calendar-outline',
+      'monthly': 'calendar-clear'
     };
     return icons[type] || 'trophy';
+  };
+
+  // Get challenge badge for special challenges
+  const getChallengeBadge = (challenge) => {
+    if (challenge.is_featured) return { text: 'FEATURED', color: '#ffaa00', icon: 'star' };
+    if (challenge.is_premium) return { text: 'PREMIUM', color: '#ff00ff', icon: 'diamond' };
+    if (challenge.is_group) return { text: 'GROUP', color: '#00ff99', icon: 'people-circle' };
+    if (challenge.is_streak) return { text: 'STREAK', color: '#ff0055', icon: 'flame' };
+    return null;
+  };
+
+  // Get challenge status
+  const getChallengeStatus = () => {
+    if (!isJoined) return null;
+    
+    const progress = calculateProgress();
+    if (progress >= 100) return { text: 'COMPLETED', color: '#00ff99', icon: 'checkmark-circle' };
+    if (progress >= 75) return { text: 'ALMOST DONE', color: '#ffaa00', icon: 'time' };
+    if (progress >= 50) return { text: 'HALFWAY', color: '#00ffff', icon: 'trending-up' };
+    return { text: 'IN PROGRESS', color: '#888', icon: 'play' };
   };
 
   // Get challenge difficulty color
@@ -213,6 +239,8 @@ const ChallengeCard = ({
   const progress = calculateProgress();
   const timeRemaining = getTimeRemaining();
   const difficultyColor = getDifficultyColor(challenge.difficulty);
+  const badge = getChallengeBadge(challenge);
+  const status = getChallengeStatus();
 
   return (
     <Animated.View 
@@ -231,7 +259,7 @@ const ChallengeCard = ({
         onPress={handleViewDetails}
         activeOpacity={0.9}
       >
-        {/* Header */}
+        {/* Header with Badge */}
         <View style={styles.header}>
           <View style={styles.typeContainer}>
             <Ionicons 
@@ -242,11 +270,28 @@ const ChallengeCard = ({
             <Text style={styles.typeText}>{challenge.type.toUpperCase()}</Text>
           </View>
           
-          <View style={styles.difficultyContainer}>
-            <View style={[styles.difficultyDot, { backgroundColor: difficultyColor }]} />
-            <Text style={styles.difficultyText}>{challenge.difficulty}</Text>
+          <View style={styles.headerRight}>
+            {badge && (
+              <View style={[styles.badge, { backgroundColor: badge.color }]}>
+                <Ionicons name={badge.icon} size={10} color="#fff" />
+                <Text style={styles.badgeText}>{badge.text}</Text>
+              </View>
+            )}
+            
+            <View style={styles.difficultyContainer}>
+              <View style={[styles.difficultyDot, { backgroundColor: difficultyColor }]} />
+              <Text style={styles.difficultyText}>{challenge.difficulty}</Text>
+            </View>
           </View>
         </View>
+
+        {/* Status Indicator */}
+        {status && (
+          <View style={[styles.statusContainer, { backgroundColor: status.color + '20' }]}>
+            <Ionicons name={status.icon} size={12} color={status.color} />
+            <Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+          </View>
+        )}
 
         {/* Title and Description */}
         <Text style={styles.title} numberOfLines={2}>{challenge.title}</Text>
@@ -371,6 +416,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   typeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,6 +452,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    backgroundColor: '#ffaa00',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
   content: {
     marginBottom: 16,
   },
@@ -422,6 +486,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     flexWrap: 'wrap',
     flexShrink: 1,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 6,
   },
   statsContainer: {
     flexDirection: 'row',

@@ -32,6 +32,7 @@ const [isSpeaking, setIsSpeaking] = useState(false);
   const [recording, setRecording] = useState(null);
   const [status, setStatus] = useState('Ready to talk');
   const [conversationCount, setConversationCount] = useState(0);
+  const [dailyUsageCount, setDailyUsageCount] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const recordingTimeoutRef = useRef(null);
  
@@ -67,10 +68,11 @@ const [isSpeaking, setIsSpeaking] = useState(false);
   }, []);
 
 
-  // Load conversation count
+  // Load conversation count and daily usage
   useEffect(() => {
     if (visible) {
       loadConversationCount();
+      loadDailyUsageCount();
     }
   }, [visible]);
 
@@ -167,12 +169,28 @@ useEffect(() => {
     }
   };
 
+  const loadDailyUsageCount = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const currentUsage = await AsyncStorage.getItem(`ai_therapist_usage_${user?.id}_${today}`);
+      setDailyUsageCount(currentUsage ? parseInt(currentUsage) : 0);
+    } catch (error) {
+      console.error('Error loading daily usage count:', error);
+    }
+  };
+
 
   // Start recording user's voice using React Native Audio
   const startRecording = async () => {
     try {
       if (isProcessing || isSpeaking) return;
 
+      // Check usage limits before starting recording
+      const canUse = await checkUsageLimits();
+      if (!canUse) {
+        setStatus('Daily limit reached');
+        return;
+      }
 
       setStatus('Starting recording...');
      
@@ -464,6 +482,40 @@ useEffect(() => {
     }
   };
 
+  const checkUsageLimits = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const currentUsage = await AsyncStorage.getItem(`ai_therapist_usage_${user?.id}_${today}`);
+      const usageCount = currentUsage ? parseInt(currentUsage) : 0;
+
+      if (usageCount >= 50) {
+        Alert.alert(
+          'Daily Limit Reached', 
+          'You\'ve reached your daily limit of 50 messages. Upgrade to Premium for unlimited AI therapy sessions!',
+          [
+            { text: 'OK' },
+            { 
+              text: 'Upgrade to Premium', 
+              onPress: () => {
+                // Navigate to premium subscription page
+                navigation.navigate('Premium');
+                onClose(); // Close the speech modal first
+                // You can add navigation to premium page here
+                console.log('Navigate to premium subscription');
+              }
+            }
+          ]
+        );
+        return false; // Return false to indicate limit exceeded
+      }
+
+      await AsyncStorage.setItem(`ai_therapist_usage_${user?.id}_${today}`, (usageCount + 1).toString());
+      return true; // Return true to indicate usage is allowed
+    } catch (error) {
+      console.error('Error checking usage limits:', error);
+      return true; // Allow usage if there's an error checking limits
+    }
+  }
 
   // Clear conversation count
   const clearConversation = async () => {
@@ -527,6 +579,12 @@ useEffect(() => {
               {conversationCount} conversations
             </Text>
           </View>
+          <View style={styles.usageBadge}>
+            <Ionicons name="time-outline" size={14} color="#FFD700" />
+            <Text style={styles.usageText}>
+              {50 - (dailyUsageCount || 0)} messages left today
+            </Text>
+          </View>
         </View>
 
 
@@ -570,7 +628,7 @@ useEffect(() => {
               onPress={() => {
                 if (Speech) {
                   Speech.stop();
-                }
+                } 
                 setIsSpeaking(false);
                 setStatus('Ready to talk');
                 setIsProcessing(false);
@@ -583,32 +641,11 @@ useEffect(() => {
         </View>
 
 
-        {/* Instructions */}
-        <View style={styles.instructionsContainer}>
-          <View style={styles.instructionCard}>
-            <Ionicons name="mic-outline" size={24} color="#00ffff" style={styles.instructionIcon} />
-            <Text style={styles.instructionsText}>
-              Tap the microphone to start talking. The AI will listen, respond, and speak back to you.
-            </Text>
-          </View>
-          <View style={styles.instructionCard}>
-            <Ionicons name="time-outline" size={20} color="#666" style={styles.instructionIcon} />
-            <Text style={styles.instructionsSubtext}>
-              Recording will auto-stop after 30 seconds or tap again to stop manually.
-            </Text>
-          </View>
-          <View style={styles.instructionCard}>
-            <Ionicons name="bulb-outline" size={20} color="#FFD700" style={styles.instructionIcon} />
-            <Text style={styles.instructionsSubtext}>
-              Speak clearly and naturally. The AI will provide personalized mental wellness support.
-            </Text>
-          </View>
-          <View style={styles.instructionCard}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#6BCF7F" style={styles.instructionIcon} />
-            <Text style={styles.instructionsSubtext}>
-              Your conversations are private and stored locally on your device.
-            </Text>
-          </View>
+        {/* Simple Instruction Subtitle */}
+        <View style={styles.instructionSubtitle}>
+          <Text style={styles.instructionSubtitleText}>
+            Tap the microphone to start talking
+          </Text>
         </View>
       </View>
     </Modal>
@@ -691,6 +728,23 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '500',
   },
+  usageBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  usageText: {
+    color: '#FFD700',
+    fontSize: 12,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
   voiceControls: {
     flex: 1,
     alignItems: 'center',
@@ -741,36 +795,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  instructionsContainer: {
-    paddingHorizontal: 30,
-    paddingBottom: 40,
-  },
-  instructionCard: {
-    flexDirection: 'row',
+  instructionSubtitle: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 30,
+    paddingBottom: 20,
   },
-  instructionIcon: {
-    marginRight: 12,
-  },
-  instructionsText: {
+  instructionSubtitleText: {
     color: '#888',
-    fontSize: 14,
-    textAlign: 'left',
-    lineHeight: 20,
-    flex: 1,
-  },
-  instructionsSubtext: {
-    color: '#666',
-    fontSize: 12,
-    textAlign: 'left',
-    lineHeight: 16,
-    flex: 1,
+    fontSize: 16,
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 22,
   },
 });
 

@@ -11,12 +11,10 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateAIResponse } from '../../utils/aiUtils';
 import { useUser } from '../../context/UserContext';
 import { useAuth } from '../../context/AuthContext';
-import { Speech } from 'expo-speech';
 import SpeechToSpeech from './speechToSpeech';
 /**
  * AI Therapist Component - Provides speech-to-speech therapy using OpenAI API
@@ -40,9 +38,6 @@ const AITherapist = ({ visible, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [sound, setSound] = useState(null);
-  const [currentSpeech, setCurrentSpeech] = useState(null);
   const scrollViewRef = useRef(null);
   const [showSpeechToSpeech, setShowSpeechToSpeech] = useState(false);
  
@@ -105,14 +100,9 @@ I'm here to listen and provide general support, but please seek professional hel
   // Cleanup speech when component unmounts
   useEffect(() => {
     return () => {
-      if (Speech) {
-        Speech.stop();
-      }
-      if (sound) {
-        sound.unloadAsync();
-      }
+      // No speech cleanup needed as expo-speech is removed
     };
-  }, [sound]);
+  }, []);
 
 
   /**
@@ -124,52 +114,43 @@ I'm here to listen and provide general support, but please seek professional hel
   const speakText = async (text) => {
     try {
       // Check if Speech is available
-      if (!Speech) {
-        console.error('Speech module not available');
-        return;
-      }
-
-
-      // Stop any currently playing speech
-      await Speech.stop();
-     
-      console.log('Text to speak:', text);
-      setIsSpeaking(true);
-
-
-      // Configure speech options for better quality and control
-      const speechOptions = {
-        language: 'en', // Use English language
-        pitch: 1.0,    // Normal pitch (0.5-2.0)
-        rate: 0.9,     // Slightly slower rate for clarity (0.1-2.0)
-        volume: 1.0,
-        voice: 'en-US-Wavenet-1'    // Full volume
-      };
-
-
-      // Start speaking the message with configured options
-      await Speech.speak(text, speechOptions);
-
-
-      // Set up a timeout to handle speech completion
-      // This is a fallback since Speech API doesn't always trigger callbacks reliably
-      const estimatedDuration = text.length * 80; // Rough estimate: 80ms per character
-      setTimeout(() => {
-        setIsSpeaking(false);
-      }, estimatedDuration);
-     
+      // This function is no longer available as expo-speech is removed
+      console.error('Text-to-speech functionality is currently unavailable.');
+      return;
     } catch (error) {
       console.error('Error with text-to-speech:', error);
-      setIsSpeaking(false);
-     
       // Show error to user
       Alert.alert(
         'Speech Error',
-        'Unable to play speech audio. Please check your device settings.'
+        'Unable to play speech audio. Text-to-speech functionality is currently unavailable.'
       );
     }
   };
 
+  /**
+   * Cleans up AI response text by removing markdown formatting, hashtags, and other unwanted formatting
+   * This function ensures clean, readable text for users
+   *
+   * @param {string} text - The raw AI response text
+   * @returns {string} Cleaned text without formatting
+   */
+  const cleanAIResponse = (text) => {
+    if (!text) return '';
+    
+    return text
+      // Remove markdown bold formatting (**text**)
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      // Remove markdown italic formatting (*text*)
+      .replace(/\*(.*?)\*/g, '$1')
+      // Remove hashtags (#hashtag)
+      .replace(/#\w+/g, '')
+      // Remove multiple spaces
+      .replace(/\s+/g, ' ')
+      // Remove extra line breaks
+      .replace(/\n\s*\n/g, '\n')
+      // Remove leading/trailing whitespace
+      .trim();
+  };
 
   /**
    * Sends a message to the AI therapist and gets a response
@@ -179,7 +160,6 @@ I'm here to listen and provide general support, but please seek professional hel
    */
   const sendMessage = async (message) => {
     if (!message.trim()) return;
-
 
     // Content filtering - check for inappropriate content
     const inappropriateKeywords = [
@@ -199,7 +179,6 @@ I'm here to listen and provide general support, but please seek professional hel
       );
       return;
     }
-
 
     // Usage limits - check daily usage
     try {
@@ -223,9 +202,7 @@ I'm here to listen and provide general support, but please seek professional hel
       console.error('Error checking usage limits:', error);
     }
 
-
     setIsLoading(true);
-
 
     // Add user message to conversation
     const userMessage = {
@@ -235,15 +212,12 @@ I'm here to listen and provide general support, but please seek professional hel
       timestamp: new Date().toISOString(),
     };
 
-
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
-
 
     try {
       // Create a therapeutic system prompt for the AI
       const systemPrompt = `You are a compassionate, professional AI therapist specializing in mental health support. Your role is to:
-
 
 1. Provide empathetic, non-judgmental responses
 2. Use evidence-based therapeutic techniques
@@ -252,7 +226,6 @@ I'm here to listen and provide general support, but please seek professional hel
 5. Maintain professional boundaries
 6. Encourage self-reflection and growth
 7. Provide crisis resources when needed
-
 
 IMPORTANT GUIDELINES:
 - Always respond with empathy and understanding
@@ -265,121 +238,69 @@ IMPORTANT GUIDELINES:
 - Use the user's name when appropriate
 - Offer specific breathing exercises or mindfulness techniques when relevant
 - Suggest journaling prompts for self-reflection
-- Do not use markdown formatting in your responses
--
+- Do not use markdown formatting, hashtags, or special formatting in your responses
+- Write in plain text only
+
 User Profile: ${userProfile?.full_name || 'User'}
 Current Context: Mental wellness session
 Remember: You are a supportive presence, not a replacement for professional therapy.`;
 
+      // Crisis detection and response
+      const crisisKeywords = [
+        'suicide', 'kill myself', 'want to die', 'end it all', 'no reason to live',
+        'self-harm', 'hurt myself', 'cut myself', 'self injury',
+        'suicidal', 'suicidal thoughts', 'suicidal ideation',
+        'depression', 'depressed', 'hopeless', 'worthless',
+        'anxiety', 'panic attack', 'can\'t breathe', 'overwhelmed',
+        'emergency', 'crisis', 'help me', 'can\'t take it anymore'
+      ];
 
-// Crisis detection and response
-const crisisKeywords = [
-  'suicide', 'kill myself', 'want to die', 'end it all', 'no reason to live',
-  'self-harm', 'hurt myself', 'cut myself', 'self injury',
-  'suicidal', 'suicidal thoughts', 'suicidal ideation',
-  'depression', 'depressed', 'hopeless', 'worthless',
-  'anxiety', 'panic attack', 'can\'t breathe', 'overwhelmed',
-  'emergency', 'crisis', 'help me', 'can\'t take it anymore'
-];
+      const hasCrisisContent = crisisKeywords.some(keyword =>
+        message.toLowerCase().includes(keyword)
+      );
 
+      if (hasCrisisContent) {
+        const crisisResponse = {
+          success: true,
+          response: `I'm concerned about what you're sharing and want to make sure you're safe.
 
-const hasCrisisContent = crisisKeywords.some(keyword =>
-  message.toLowerCase().includes(keyword)
-);
+CRISIS RESOURCES - PLEASE READ:
 
-
-if (hasCrisisContent) {
-  const crisisResponse = {
-    success: true,
-    response: `I'm concerned about what you're sharing and want to make sure you're safe.
-
-
-🚨 **CRISIS RESOURCES - PLEASE READ:**
-
-
-**If you're in immediate danger:**
+If you're in immediate danger:
 • Call 911 (Emergency Services)
 • Call 988 (Suicide & Crisis Lifeline) - Available 24/7
 • Text HOME to 741741 (Crisis Text Line)
 
-
-**Professional Help:**
+Professional Help:
 • Talk to a mental health professional
 • Contact your doctor or therapist
 • Visit your nearest emergency room
 
-
-**Remember:** You're not alone, and help is available. Your life has value, and there are people who care about you and want to help.
-
+Remember: You're not alone, and help is available. Your life has value, and there are people who care about you and want to help.
 
 Would you like to talk more about what's going on, or would you prefer to connect with one of these crisis resources right now?`
-  };
- 
-  const crisisMessage = {
-    id: Date.now() + 1,
-    type: 'therapist',
-    text: crisisResponse.response,
-    timestamp: new Date().toISOString(),
-    isCrisis: true
-  };
+        };
+       
+        const crisisMessage = {
+          id: Date.now() + 1,
+          type: 'therapist',
+          text: cleanAIResponse(crisisResponse.response),
+          timestamp: new Date().toISOString(),
+          isCrisis: true
+        };
 
+        setMessages(prev => [...prev, crisisMessage]);
 
-  setMessages(prev => [...prev, crisisMessage]);
+        // Save conversation
+        try {
+          const conversationHistory = messages.concat([userMessage, crisisMessage]);
+          await AsyncStorage.setItem('aiTherapistConversation', JSON.stringify(conversationHistory));
+        } catch (error) {
+          console.error('Error saving crisis conversation:', error);
+        }
 
-
-  // Save conversation
-  try {
-    const conversationHistory = messages.concat([userMessage, crisisMessage]);
-    await AsyncStorage.setItem('aiTherapistConversation', JSON.stringify(conversationHistory));
-  } catch (error) {
-    console.error('Error saving crisis conversation:', error);
-  }
-
-
-  return;
-}
-
-
-// This function handles text-to-speech conversion using the Expo Speech API
-// It takes a message string and converts it to spoken audio
-const textToSpeech = async (message) => {
-  try {
-    // Check if Speech is available
-    if (!Speech) {
-      console.error('Speech module not available');
-      return;
-    }
-
-
-    // Configure speech options for better quality and control
-    const speechOptions = {
-      language: 'en', // Use English language
-      pitch: 1.0,    // Normal pitch (0.5-2.0)
-      rate: 0.9,     // Slightly slower rate for clarity (0.1-2.0)
-      volume: 1.0    // Full volume
-    };
-
-
-    // Stop any existing speech before starting new one
-    if (Speech) {
-      await Speech.stop();
-    }
-   
-    // Start speaking the message with configured options
-    await Speech.speak(message, speechOptions);
-
-
-  } catch (error) {
-    console.error('Error with text-to-speech:', error);
-    Alert.alert(
-      'Speech Error',
-      'Unable to play speech audio. Please check your device settings.'
-    );
-  }
-};
-
-
-
+        return;
+      }
 
       // Get AI response using the existing generateAIResponse function
       const aiResult = await generateAIResponse(
@@ -392,18 +313,18 @@ const textToSpeech = async (message) => {
         systemPrompt
       );
 
-
       if (aiResult.success) {
+        // Clean the AI response before displaying
+        const cleanedResponse = cleanAIResponse(aiResult.response);
+        
         const therapistMessage = {
           id: Date.now() + 1,
           type: 'therapist',
-          text: aiResult.response,
+          text: cleanedResponse,
           timestamp: new Date().toISOString(),
         };
 
-
         setMessages(prev => [...prev, therapistMessage]);
-
 
         // Save conversation to AsyncStorage for persistence
         try {
@@ -413,9 +334,8 @@ const textToSpeech = async (message) => {
           console.error('Error saving conversation:', error);
         }
 
-
-        // Convert response to speech
-        await speakText(aiResult.response);
+        // Speech functionality removed - no longer calling speakText
+        // await speakText(cleanedResponse);
       } else {
         // Handle AI response failure
         const errorMessage = {
@@ -474,9 +394,7 @@ const textToSpeech = async (message) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => {
-            if (Speech) {
-              Speech.stop(); // Stop any ongoing speech
-            }
+            // No speech stop needed as expo-speech is removed
             onClose();
           }} style={styles.closeButton}>
             <Ionicons name="close" size={24} color="#fff" />
@@ -600,20 +518,18 @@ const textToSpeech = async (message) => {
                         <Ionicons name="volume-high" size={16} color="#FF6B6B" />
                       </TouchableOpacity>
                      
-                      {isSpeaking && currentSpeech === message.id && (
-                        <TouchableOpacity
-                          style={styles.messageActionButton}
-                          onPress={() => {
-                            if (Speech) {
-                              Speech.stop();
-                            }
-                            setIsSpeaking(false);
-                          }}
-                        >
-                          <Ionicons name="stop-circle" size={16} color="#FF6B6B" />
-                        </TouchableOpacity>
-                       
-                      )}
+                      {/* isSpeaking and currentSpeech are no longer available */}
+                      {/* <TouchableOpacity
+                        style={styles.messageActionButton}
+                        onPress={() => {
+                          if (Speech) {
+                            Speech.stop();
+                          }
+                          setIsSpeaking(false);
+                        }}
+                      >
+                        <Ionicons name="stop-circle" size={16} color="#FF6B6B" />
+                      </TouchableOpacity> */}
                       <TouchableOpacity
                         style={styles.messageActionButton}
                         onPress={() => setShowSpeechToSpeech(true)}
@@ -666,12 +582,13 @@ const textToSpeech = async (message) => {
 
 
         {/* Speaking Indicator */}
-        {isSpeaking && (
+        {/* isSpeaking is no longer available */}
+        {/* {isSpeaking && (
           <View style={styles.speakingIndicator}>
             <Ionicons name="volume-high" size={16} color="#FF6B6B" />
             <Text style={styles.speakingText}>Therapist is speaking...</Text>
           </View>
-        )}
+        )} */}
       </View>
       <SpeechToSpeech
         visible={showSpeechToSpeech}

@@ -20,29 +20,28 @@ export const TrainerProvider = ({ children }) => {
   // Set message limits - FREE MODE: Unlimited messages for all users
   const MAX_DAILY_MESSAGES = 1000; // Effectively unlimited
 
-  // Function to clean up markdown formatting from AI responses
-  const cleanMarkdownFormatting = (text) => {
-    if (!text) return text;
+  /**
+   * Cleans up AI response text by removing markdown formatting, hashtags, and other unwanted formatting
+   * This function ensures clean, readable text for users in the trainer interface
+   *
+   * @param {string} text - The raw AI response text
+   * @returns {string} Cleaned text without formatting
+   */
+  const cleanAIResponse = (text) => {
+    if (!text) return '';
     
     return text
-      // Remove markdown headers (#####, ####, ###, ##, #)
-      .replace(/^#{1,6}\s+/gm, '')
-      // Remove markdown bold/italic markers (**, *)
-      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
+      // Remove markdown bold formatting (**text**)
       .replace(/\*\*(.*?)\*\*/g, '$1')
+      // Remove markdown italic formatting (*text*)
       .replace(/\*(.*?)\*/g, '$1')
-      // Remove markdown code blocks (```)
-      .replace(/```[\s\S]*?```/g, '')
-      // Remove markdown inline code (`)
-      .replace(/`([^`]+)`/g, '$1')
-      // Remove markdown links [text](url)
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Remove markdown lists (-, *, +)
-      .replace(/^[\s]*[-*+]\s+/gm, '')
-      // Remove markdown numbered lists
-      .replace(/^[\s]*\d+\.\s+/gm, '')
-      // Clean up extra whitespace
-      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      // Remove hashtags (#hashtag)
+      .replace(/#\w+/g, '')
+      // Remove multiple spaces
+      .replace(/\s+/g, ' ')
+      // Remove extra line breaks
+      .replace(/\n\s*\n/g, '\n')
+      // Remove leading/trailing whitespace
       .trim();
   };
 
@@ -275,7 +274,7 @@ FORMATTING & STYLE:
           systemPrompt
         );
         if (aiResult.success) {
-          aiResponse = cleanMarkdownFormatting(aiResult.response);
+          aiResponse = cleanAIResponse(aiResult.response);
         } else {
           console.error('=== AI RESPONSE FAILED ===', aiResult.error);
           aiResponse = `Sorry, I'm having trouble connecting to my AI service right now. Error: ${aiResult.error}`;

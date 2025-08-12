@@ -7,6 +7,7 @@ class ChallengeRecommendationEngine {
     this.userBehavior = new Map();
     this.challengeScores = new Map();
     this.socialGraph = new Map();
+    this.friendChallengeParticipation = new Map();
   }
 
   /**
@@ -56,7 +57,7 @@ class ChallengeRecommendationEngine {
         .eq('user_id', userId)
         .order('joined_at', { ascending: false })
         .limit(50);
-
+const {data: friendsChallenges} = awa
       // Calculate interest scores
       const interests = this.calculateInterestScores({
         workouts: workouts || [],
@@ -209,6 +210,14 @@ class ChallengeRecommendationEngine {
       const socialBonus = await this.calculateSocialBonus(challenge.id, userInterests);
       score += socialBonus;
 
+      // Achievement bonus
+      const achievementBonus = await this.calculateAchievementBonus(userInterests.userId, challenge.type);
+      score += achievementBonus;
+
+      // Streak bonus
+      const streakBonus = await this.calculateStreakBonus(userInterests.userId);
+      score += streakBonus;
+
       // Reward points bonus
       score += (challenge.reward_points || 0) * 0.1;
 
@@ -216,6 +225,12 @@ class ChallengeRecommendationEngine {
       if (challenge.completion_rate) {
         score += challenge.completion_rate * 0.2;
       }
+
+      // Special challenge bonuses
+      if (challenge.is_featured) score += 25;
+      if (challenge.is_premium) score += 20;
+      if (challenge.is_group) score += 15;
+      if (challenge.is_streak) score += 30;
 
       scoredChallenges.push({
         ...challenge,
@@ -311,11 +326,81 @@ class ChallengeRecommendationEngine {
 
         // Bonus for friends participating
         socialScore += friendsParticipating * 15;
+        
+        // Extra bonus if multiple friends are participating
+        if (friendsParticipating > 3) {
+          socialScore += 25;
+        }
+      }
+
+      // Check if challenge is from user's groups
+      const { data: userGroups } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', userInterests.userId);
+
+      if (userGroups && userGroups.length > 0) {
+        const groupIds = userGroups.map(g => g.group_id);
+        const groupParticipants = participants?.filter(p => 
+          groupIds.includes(p.group_id)
+        ).length || 0;
+
+        // Bonus for group challenges
+        socialScore += groupParticipants * 10;
       }
 
       return socialScore;
     } catch (error) {
       console.error('Error calculating social bonus:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Calculate achievement bonus based on user's achievement history
+   */
+  async calculateAchievementBonus(userId, challengeType) {
+    try {
+      const { data: achievements } = await supabase
+        .from('user_achievements')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('category', challengeType);
+
+      const achievementCount = achievements?.length || 0;
+      
+      // Bonus for users who have earned achievements in this category
+      if (achievementCount > 0) {
+        return Math.min(20, achievementCount * 5);
+      }
+
+      return 0;
+    } catch (error) {
+      console.error('Error calculating achievement bonus:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Calculate streak bonus based on user's current streaks
+   */
+  async calculateStreakBonus(userId) {
+    try {
+      const { data: activeChallenges } = await supabase
+        .from('challenge_participants')
+        .select('*, challenges(*)')
+        .eq('user_id', userId)
+        .eq('completed', false)
+        .gte('last_activity', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+      const streakChallenges = activeChallenges?.filter(c => 
+        c.challenges?.type === 'streak' || c.challenges?.is_streak
+      ).length || 0;
+
+      // Bonus for users who are good at maintaining streaks
+      return Math.min(15, streakChallenges * 3);
+    } catch (error) {
+      console.error('Error calculating streak bonus:', error);
       return 0;
     }
   }
@@ -498,6 +583,147 @@ class ChallengeRecommendationEngine {
       return [];
     }
   }
+
+  /**
+   * Check and award achievements for challenge completion
+   */
+  async checkAchievements(userId, challengeId) {
+    try {
+      // Get user's challenge completion
+      const { data: participation } = await supabase
+        .from('challenge_participants')
+        .select('*, challenges(*)')
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
+        .single();
+
+      if (!participation || !participation.completed) return [];
+
+      const challenge = participation.challenges;
+      const achievements = [];
+
+      // Check for first challenge completion
+      const { data: totalCompleted } = await supabase
+        .from('challenge_participants')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('completed', true);
+
+      if (totalCompleted?.length === 1) {
+        achievements.push({
+          id: 'first_challenge',
+          title: 'First Steps',
+          description: 'Completed your first challenge',
+          category: 'milestone',
+          points: 50
+        });
+      }
+
+      // Check for streak achievements
+      const { data: recentCompletions } = await supabase
+        .from('challenge_participants')
+        .select('completed_at')
+        .eq('user_id', userId)
+        .eq('completed', true)
+        .gte('completed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('completed_at', { ascending: false });
+
+      const completionCount = recentCompletions?.length || 0;
+      
+      if (completionCount >= 10) {
+        achievements.push({
+          id: 'challenge_master',
+          title: 'Challenge Master',
+          description: 'Completed 10 challenges in 30 days',
+          category: 'streak',
+          points: 200
+        });
+      } else if (completionCount >= 5) {
+        achievements.push({
+          id: 'challenge_enthusiast',
+          title: 'Challenge Enthusiast',
+          description: 'Completed 5 challenges in 30 days',
+          category: 'streak',
+          points: 100
+        });
+      }
+
+      // Check for type-specific achievements
+      const { data: typeCompletions } = await supabase
+        .from('challenge_participants')
+        .select('*, challenges(type)')
+        .eq('user_id', userId)
+        .eq('completed', true)
+        .eq('challenges.type', challenge.type);
+
+      const typeCount = typeCompletions?.length || 0;
+      
+      if (typeCount >= 5) {
+        achievements.push({
+          id: `${challenge.type}_expert`,
+          title: `${challenge.type.charAt(0).toUpperCase() + challenge.type.slice(1)} Expert`,
+          description: `Completed 5 ${challenge.type} challenges`,
+          category: challenge.type,
+          points: 150
+        });
+      }
+
+      // Award achievements
+      for (const achievement of achievements) {
+        await this.awardAchievement(userId, achievement);
+      }
+
+      return achievements;
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Award an achievement to a user
+   */
+  async awardAchievement(userId, achievement) {
+    try {
+      // Check if achievement already awarded
+      const { data: existing } = await supabase
+        .from('user_achievements')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('achievement_id', achievement.id)
+        .single();
+
+      if (existing) return false;
+
+      // Award the achievement
+      const { error } = await supabase
+        .from('user_achievements')
+        .insert({
+          user_id: userId,
+          achievement_id: achievement.id,
+          title: achievement.title,
+          description: achievement.description,
+          category: achievement.category,
+          points: achievement.points,
+          awarded_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      // Update user's total points
+      await supabase
+        .from('profiles')
+        .update({ 
+          total_points: supabase.sql`total_points + ${achievement.points}` 
+        })
+        .eq('id', userId);
+
+      return true;
+    } catch (error) {
+      console.error('Error awarding achievement:', error);
+      return false;
+    }
+  }
 }
 
 // Create singleton instance
@@ -509,4 +735,6 @@ export const getTrendingChallenges = (limit) => challengeEngine.getTrendingChall
 export const getChallengesByType = (type, limit) => challengeEngine.getChallengesByType(type, limit);
 export const getUserChallenges = (userId) => challengeEngine.getUserChallenges(userId);
 export const updateProgress = (userId, challengeId, progress) => challengeEngine.updateProgress(userId, challengeId, progress);
-export const getChallengeLeaderboard = (challengeId, limit) => challengeEngine.getChallengeLeaderboard(challengeId, limit); 
+export const getChallengeLeaderboard = (challengeId, limit) => challengeEngine.getChallengeLeaderboard(challengeId, limit);
+export const checkAchievements = (userId, challengeId) => challengeEngine.checkAchievements(userId, challengeId);
+export const awardAchievement = (userId, achievement) => challengeEngine.awardAchievement(userId, achievement); 
