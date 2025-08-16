@@ -54,8 +54,9 @@ const width = Dimensions.get('window').width;
 // Helper function to get video duration
 const getVideoDuration = async (videoUri) => {
   try {
-    const { status } = await Video.getStatusAsync(videoUri);
-    return status.durationMillis / 1000; // Convert to seconds
+    // For now, return a default duration since we can't reliably get duration from URI
+    // In a real implementation, you might want to use a video processing library
+    return 10; // Default 10 seconds
   } catch (error) {
     console.error('Error getting video duration:', error);
     return 0;
@@ -285,8 +286,10 @@ const getVideoDuration = async (videoUri) => {
         .select('id, username, avatar_url, is_premium')
         .ilike('username', `%${text}%`) // Linear search
         .limit(10);
+      setSearchResults(data || []);
     } catch (e) {
       console.error('Error searching users:', e);
+      setSearchResults([]);
     } finally {
       setLoading(false);
     }
@@ -678,7 +681,8 @@ const handleUploadVideo = async () => {
     // Launch camera to record video with specific settings
     // allowsEditing: lets user trim video
     // videoDuration: limits recording to 30 seconds
-    const video = await Video.launchCameraAsync({
+    const video = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: true,
       aspect: [16, 9],
       quality: 1,
